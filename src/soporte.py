@@ -99,7 +99,7 @@ def scrapeo_por_supermercado(nombre_super):
     return diccionario_gral
 
 
-
+#--------------------------------------------------------------------------------------------------------------------
 
 
 #Sacamos los valores interiores
@@ -122,3 +122,54 @@ def aplicar_subproductos_a_productos(lista_enlaces_de_los_productos):
        
         dic_subs[url] = lista_subproductos
     return dic_subs
+
+
+
+
+#--------------------------------------------------------------------------------------------------------------------
+
+
+
+#Sacar histórico de precios, empecemos con una url: 
+def sacar_histórico(url_sproducto):
+
+    url_producto = url_sproducto
+    res_producto = requests.get(url_producto)
+    print(res_producto)
+
+    sopa_producto = BeautifulSoup(res_producto.content,"html.parser")
+    tablas = sopa_producto.find_all("table")
+
+    tablasweb = []
+    for n in tablas:
+        tablasweb.append(n)
+    
+
+    tabla = tablasweb[0]
+
+    lista_filas_producto = tabla.findAll("tr")
+    print(f" la tabla tiene {len(lista_filas_producto)} filas")
+
+# Creamos un diccionario llamado diccionario_producto para almacenar todos los resultados
+# Iniciamos un bucle 'for' para iterar a través de la lista_filas_producto a partir de la segunda fila
+    diccionario_producto = {}
+    diccionario_variaciones = {}
+    for fila in lista_filas_producto[1:]:
+    # Para cada 'fila', extraemos el texto y los datos
+        fila_texto = fila.findAll("td")
+    #Creamos un diccionario con cada valor a través de la lista anteriormente generada
+        diccionario_producto[fila_texto[0].getText()] = fila_texto[1].getText()
+        diccionario_variaciones [fila_texto[0].getText()] = fila_texto[2].getText()
+
+# Imprimimos los resultados obtenidos después de iterar por la lista.
+# print(f"Los resultados de iterar por la lista son:\n {diccionario_variaciones}")
+
+#Creamos el df del histórico del producto
+    df_producto = pd.DataFrame(diccionario_producto.values(), index = diccionario_variaciones.keys())
+
+#Creamos columnas para la variación de precio y la variación porcentual    
+    df_producto["variaciones"] = diccionario_variaciones.values()
+    df_producto["variaciones"].replace("=",None, inplace= True)
+    df_producto[["Variación","Variación_porcentual"]] = df_producto["variaciones"].str.rsplit("(", expand = True)
+    df_producto["Variación_porcentual"] = df_producto["Variación_porcentual"].str.split(")")
+    df_producto.drop(columns = "variaciones",inplace = True)
