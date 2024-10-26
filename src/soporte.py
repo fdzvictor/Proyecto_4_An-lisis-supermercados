@@ -131,45 +131,67 @@ def aplicar_subproductos_a_productos(lista_enlaces_de_los_productos):
 
 
 #Sacar histórico de precios, empecemos con una url: 
-def sacar_histórico(url_sproducto):
+def sacar_historico(url_sproducto):
 
-    url_producto = url_sproducto
-    res_producto = requests.get(url_producto)
+#Sacar histórico de precios, empecemos con una url: 
+    res_producto = requests.get(url_sproducto)
     print(res_producto)
 
+#Creamos bs4, buscamos aquellos elementos que sean tablas y seleccionamos la que queremos en concreto
     sopa_producto = BeautifulSoup(res_producto.content,"html.parser")
     tablas = sopa_producto.find_all("table")
 
     tablasweb = []
     for n in tablas:
         tablasweb.append(n)
-    
-
-    tabla = tablasweb[0]
-
-    lista_filas_producto = tabla.findAll("tr")
-    print(f" la tabla tiene {len(lista_filas_producto)} filas")
+##Puesto que hay webs que tienen dos tablas, cogemos siempre la de históricos, la última.
+    try:
+        tabla = tablasweb[-1]
+  
+        lista_filas_producto = tabla.findAll("tr")
+        print(f" la tabla tiene {len(lista_filas_producto)} filas")
 
 # Creamos un diccionario llamado diccionario_producto para almacenar todos los resultados
 # Iniciamos un bucle 'for' para iterar a través de la lista_filas_producto a partir de la segunda fila
-    diccionario_producto = {}
-    diccionario_variaciones = {}
-    for fila in lista_filas_producto[1:]:
+        diccionario_producto = {}
+        diccionario_variaciones = {}
+        for fila in lista_filas_producto[1:]:
     # Para cada 'fila', extraemos el texto y los datos
-        fila_texto = fila.findAll("td")
+            fila_texto = fila.findAll("td")
     #Creamos un diccionario con cada valor a través de la lista anteriormente generada
-        diccionario_producto[fila_texto[0].getText()] = fila_texto[1].getText()
-        diccionario_variaciones [fila_texto[0].getText()] = fila_texto[2].getText()
+            diccionario_producto[fila_texto[0].getText()] = fila_texto[1].getText()
+            diccionario_variaciones [fila_texto[0].getText()] = fila_texto[2].getText()
 
-# Imprimimos los resultados obtenidos después de iterar por la lista.
-# print(f"Los resultados de iterar por la lista son:\n {diccionario_variaciones}")
+    # Imprimimos los resultados obtenidos después de iterar por la lista.
+        print(f"Los resultados de iterar por la lista son:\n {diccionario_producto}")
 
 #Creamos el df del histórico del producto
-    df_producto = pd.DataFrame(diccionario_producto.values(), index = diccionario_variaciones.keys())
+        df_producto = pd.DataFrame(diccionario_producto.values(), index = diccionario_variaciones.keys())
+
 
 #Creamos columnas para la variación de precio y la variación porcentual    
-    df_producto["variaciones"] = diccionario_variaciones.values()
-    df_producto["variaciones"].replace("=",None, inplace= True)
-    df_producto[["Variación","Variación_porcentual"]] = df_producto["variaciones"].str.rsplit("(", expand = True)
-    df_producto["Variación_porcentual"] = df_producto["Variación_porcentual"].str.split(")")
-    df_producto.drop(columns = "variaciones",inplace = True)
+        df_producto["variaciones"] = diccionario_variaciones.values()
+        
+#Creamos columnas para el supermercado y el producto       
+        split_url = (url_sproducto.split("/"))
+        df_producto["Supermercado"] = split_url[3]
+        df_producto["Categoría"] = split_url[4].replace("-"," ")
+
+#Si la columna "Variación" no tiene valores, generamos dos columnas vacías, para que cuadre todo el df final
+        try:
+            df_producto[["Variación","Variación_porcentual"]] = df_producto["variaciones"].str.rsplit("(", expand = True)
+            df_producto["Variación_porcentual"] = df_producto["Variación_porcentual"].str.split(")")
+            df_producto.drop(columns = "variaciones",inplace = True)
+            ## Para estandarizar columnas dejamos los "=" como "None"
+            df_producto['Variación'] = df_producto['Variación'].apply(lambda x: None if x == "=" else x)
+
+            
+
+        except ValueError:
+            df_producto["Variación"] = "None"
+            df_producto["Variación_porcentual"] = "None"
+            df_producto.drop(columns = "variaciones",inplace = True)
+
+        return df_producto 
+    except:
+        pass
