@@ -195,3 +195,7 @@ def sacar_historico(url_sproducto):
         return df_producto 
     except:
         pass
+
+
+
+#----------------------------------------------------------------------------
